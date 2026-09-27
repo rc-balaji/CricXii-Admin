@@ -1,5 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
-import { adminDb } from "../../../../../../lib/firebase/admin";
+import { getAdminDb } from "../../../../../../lib/firebase/admin";
 import { createAuditRecord } from "../../../../../../lib/admin/audit";
 import { AdminApiError, jsonError, jsonSuccess, readJson, requireSameOrigin, serializeTimestamp } from "../../../../../../lib/admin/http";
 import { requireAdmin } from "../../../../../../lib/admin/require-admin";
@@ -17,6 +17,7 @@ export async function POST(request, { params }) {
     if (typeof body.archived !== "boolean") throw new AdminApiError(422, "INVALID_STATUS", "Archived must be true or false.");
     const reason = typeof body.reason === "string" ? body.reason.trim() : "";
     if (reason.length < 5 || reason.length > 300) throw new AdminApiError(422, "INVALID_REASON", "Give a reason between 5 and 300 characters.");
+    const adminDb = getAdminDb();
     const playerRef = adminDb.collection("players").doc(playerId);
     const audit = createAuditRecord({
       actor,

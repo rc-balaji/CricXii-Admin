@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { adminAuth } from "../../../../lib/firebase/admin";
+import { getAdminAuth } from "../../../../lib/firebase/admin";
 import { requireAdmin } from "../../../../lib/admin/require-admin";
 import { AdminApiError, jsonError, jsonSuccess, readJson, requireSameOrigin } from "../../../../lib/admin/http";
 
@@ -39,7 +39,7 @@ export async function POST(request) {
 
     let decoded;
     try {
-      decoded = await adminAuth.verifyIdToken(body.idToken, true);
+      decoded = await getAdminAuth().verifyIdToken(body.idToken, true);
     } catch (error) {
       if (typeof error?.code === "string" && error.code.startsWith("auth/")) {
         throw new AdminApiError(401, "INVALID_TOKEN", "Firebase could not verify this sign-in. Sign in again.");
@@ -63,7 +63,7 @@ export async function POST(request) {
       throw new AdminApiError(403, "RECENT_AUTH_REQUIRED", "Sign in again before starting an administrator session.");
     }
 
-    const sessionCookie = await adminAuth.createSessionCookie(body.idToken, { expiresIn: maxAge * 1000 });
+    const sessionCookie = await getAdminAuth().createSessionCookie(body.idToken, { expiresIn: maxAge * 1000 });
     const response = jsonSuccess({ authenticated: true, email, role });
     setSessionCookie(response, sessionCookie, maxAge);
     return response;

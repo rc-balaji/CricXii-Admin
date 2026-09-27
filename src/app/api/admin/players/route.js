@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { FieldPath } from "firebase-admin/firestore";
-import { adminDb } from "../../../../lib/firebase/admin";
+import { getAdminDb } from "../../../../lib/firebase/admin";
 import { createAuditRecord } from "../../../../lib/admin/audit";
 import { AdminApiError, jsonError, jsonSuccess, serializeTimestamp } from "../../../../lib/admin/http";
 import { requireAdmin } from "../../../../lib/admin/require-admin";
@@ -72,6 +72,7 @@ export async function GET(request) {
     }
     if (q.length > 120) throw new AdminApiError(422, "QUERY_TOO_LONG", "The search query is too long.");
     const archived = status === "all" ? null : status === "archived";
+    const adminDb = getAdminDb();
     const collection = adminDb.collection("players");
 
     if (qType === "email") {

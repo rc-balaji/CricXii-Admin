@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { adminAuth } from "../firebase/admin";
+import { getAdminAuth } from "../firebase/admin";
 import { AdminApiError } from "./http";
 
 export const ADMIN_ROLES = ["support", "operator", "owner"];
@@ -13,7 +13,7 @@ export async function requireAdmin(minimumRole = "support") {
 
   let decoded;
   try {
-    decoded = await adminAuth.verifySessionCookie(cookie, true);
+    decoded = await getAdminAuth().verifySessionCookie(cookie, true);
   } catch {
     throw new AdminApiError(401, "UNAUTHENTICATED", "Your administrator session has expired. Sign in again.");
   }

@@ -1,5 +1,5 @@
 import { FieldPath, Timestamp } from "firebase-admin/firestore";
-import { adminDb } from "../../../../lib/firebase/admin";
+import { getAdminDb } from "../../../../lib/firebase/admin";
 import { createAuditRecord } from "../../../../lib/admin/audit";
 import { AdminApiError, jsonError, jsonSuccess, serializeTimestamp } from "../../../../lib/admin/http";
 import { requireAdmin } from "../../../../lib/admin/require-admin";
@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 export async function GET(request) {
   try {
     const actor = await requireAdmin("owner");
+    const adminDb = getAdminDb();
     const params = new URL(request.url).searchParams;
     const limitValue = Number(params.get("limit") || 25);
     if (!Number.isInteger(limitValue) || limitValue < 1) throw new AdminApiError(422, "INVALID_LIMIT", "The page size must be a positive whole number.");

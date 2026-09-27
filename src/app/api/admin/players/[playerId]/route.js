@@ -1,5 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
-import { adminDb } from "../../../../../lib/firebase/admin";
+import { getAdminDb } from "../../../../../lib/firebase/admin";
 import { createAuditRecord } from "../../../../../lib/admin/audit";
 import { AdminApiError, jsonError, jsonSuccess, readJson, requireSameOrigin, serializeTimestamp } from "../../../../../lib/admin/http";
 import { requireAdmin } from "../../../../../lib/admin/require-admin";
@@ -112,6 +112,7 @@ export async function GET(request, { params }) {
     const actor = await requireAdmin();
     const { playerId } = await params;
     if (!/^[A-Za-z0-9_-]{1,150}$/.test(playerId || "")) throw new AdminApiError(422, "INVALID_PLAYER_ID", "The player ID is invalid.");
+    const adminDb = getAdminDb();
     const snapshot = await adminDb.collection("players").doc(playerId).get();
     if (!snapshot.exists) throw new AdminApiError(404, "PLAYER_NOT_FOUND", "Player not found.");
     const player = project(snapshot);
@@ -134,6 +135,7 @@ export async function PATCH(request, { params }) {
     const reason = typeof body.reason === "string" ? body.reason.trim() : "";
     if (reason.length < 5 || reason.length > 300) throw new AdminApiError(422, "INVALID_REASON", "Give a reason between 5 and 300 characters.");
     const changes = validateChanges(body.changes);
+    const adminDb = getAdminDb();
     const playerRef = adminDb.collection("players").doc(playerId);
     const audit = createAuditRecord({ actor, action: "player.profile.update", targetId: playerId, reason, changedFields: Object.keys(changes) });
 
