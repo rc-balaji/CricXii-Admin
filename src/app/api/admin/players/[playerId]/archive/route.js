@@ -2,25 +2,25 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "../../../../../../lib/firebase/admin";
 import { createAuditRecord } from "../../../../../../lib/admin/audit";
 import { AdminApiError, jsonError, jsonSuccess, readJson, requireSameOrigin, serializeTimestamp } from "../../../../../../lib/admin/http";
-import { requireAdmin } from "../../../../../../lib/admin/require-admin";
+import { requireWriteConfirmation, sharedKeyActor } from "../../../../../../lib/admin/require-write-key";
 
 export const runtime = "nodejs";
 
 export async function POST(request, { params }) {
   try {
     requireSameOrigin(request);
-    const actor = await requireAdmin("operator");
     const { playerId } = await params;
     if (!/^[A-Za-z0-9_-]{1,150}$/.test(playerId || "")) throw new AdminApiError(422, "INVALID_PLAYER_ID", "The player ID is invalid.");
     const body = await readJson(request);
     if (!body || typeof body !== "object" || Array.isArray(body)) throw new AdminApiError(422, "INVALID_BODY", "The request body is invalid.");
+    requireWriteConfirmation(body.confirmationKey);
     if (typeof body.archived !== "boolean") throw new AdminApiError(422, "INVALID_STATUS", "Archived must be true or false.");
     const reason = typeof body.reason === "string" ? body.reason.trim() : "";
     if (reason.length < 5 || reason.length > 300) throw new AdminApiError(422, "INVALID_REASON", "Give a reason between 5 and 300 characters.");
     const adminDb = getAdminDb();
     const playerRef = adminDb.collection("players").doc(playerId);
     const audit = createAuditRecord({
-      actor,
+      actor: sharedKeyActor(),
       action: body.archived ? "player.archive" : "player.restore",
       targetId: playerId,
       reason,

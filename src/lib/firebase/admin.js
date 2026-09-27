@@ -1,6 +1,5 @@
 import "server-only";
 import { applicationDefault, cert, getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
 let initializedApp;
@@ -21,10 +20,6 @@ function getAdminApp() {
 
   initializedApp = getApps()[0] ?? initializeApp({ credential, projectId });
   return initializedApp;
-}
-
-export function getAdminAuth() {
-  return getAuth(getAdminApp());
 }
 
 export function getAdminDb() {

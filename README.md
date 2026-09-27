@@ -1,93 +1,68 @@
 # CricXii Admin Console
 
-The console reads player records from the `crixx-59eca` Firestore project
-through authenticated Next.js server APIs. The Firebase Web SDK is used only
-for administrator sign-in; browser code never reads or writes Firestore.
+The dashboard opens without a sign-in screen. Player profiles are publicly
+readable through the dashboard API, while profile edits and archive/restore
+actions require a server-only confirmation key on every request. The API only
+returns allowlisted profile data; account emails, contact details, password
+credentials, and audit logs are not exposed to public readers.
 
 ## Run locally
 
 1. Copy `.env.example` to `.env.local`. The local `.env.local` is ignored by
-   git and contains the Firebase Web App config already provided for this
-   project.
-2. Configure Firebase Admin credentials locally. Either use Google
-   Application Default Credentials:
+   git.
+2. Configure Firebase Admin credentials for the `crixx-59eca` project. Either
+   use Google Application Default Credentials:
 
    ```bash
    gcloud auth application-default login
    ```
 
-   or fill `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` in `.env.local`
-   using a Firebase service account from the `crixx-59eca` project. Never
-   commit or share that private key.
-3. Enable **Email/Password** in Firebase Authentication, enable TOTP MFA, and
-   add the local development domain to Authorized domains.
-4. Create or verify the administrator as a Firebase Authentication
-   email/password user, then grant its custom claims out of band:
-
-   ```bash
-   npm run admin:grant -- rcbalaji2003@gmail.com operator
-   ```
-
-   This script reads `.env.local`, requires the same email to be explicitly
-   listed in `ADMIN_ALLOWED_EMAILS`, and grants only its existing Firebase
-   Authentication user the requested role. Start with `operator`; grant
-   `owner` only if audit-log access or owner-only operations are needed. If
-   the email exists only in CricXii's Firestore `loginCredentials`, create a
-   separate Firebase Authentication identity for that email first. The
-   Firestore player password verifier cannot be reused as a Firebase Auth
-   password; set a new password privately through Firebase Authentication.
-   The console never reads or stores the password. On first admin sign-in the
-   console requires authenticator enrollment, then requires the authenticator
-   code on subsequent sign-ins.
-5. Start the app:
+   or set `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and
+   `FIREBASE_PRIVATE_KEY` using a Firebase service account. Never commit or
+   share the service-account private key.
+3. Generate a separate strong random secret for `ADMIN_WRITE_CONFIRMATION_KEY`
+   and save it only in your local environment and deployment secrets. It must
+   be at least 32 bytes. Do not use a player password or put this key in
+   `NEXT_PUBLIC_*`, browser code, or source control.
+4. Install dependencies and start the app:
 
    ```bash
    npm install
    npm run dev
    ```
 
-Open [http://localhost:3000](http://localhost:3000) and sign in with the
-separately provisioned Firebase Authentication administrator account. Player
-app credentials are not administrator credentials.
+Open [http://localhost:3000](http://localhost:3000). Reads work once Firebase
+Admin credentials are configured; writes remain disabled until the server
+confirmation key is configured.
 
-## Connected features
+## Features and data access
 
-- Search Firestore profiles by name prefix or player ID; exact email lookup is
-  available to operator/owner roles only.
-- View allowlisted profile fields and read-only Singles/team career stats.
-- Edit only approved public fields and archive/restore with a reason and an
-  optimistic `updatedAt` precondition.
-- Record profile reads and mutations in `adminAuditLogs`; audit history is
-  owner-only and read-only in the UI.
-- The browser communicates only with `/api/admin/*`; server routes verify
-  Firebase session cookies, administrator claims, role and MFA.
+- Search Firestore profiles by name prefix or player ID, and filter by active
+  or archived status.
+- View allowlisted public profile fields and read-only career statistics.
+- Edit approved profile fields and archive/restore profiles with a reason and
+  an optimistic `updatedAt` precondition.
+- Require the confirmation key on each write; compare it on the server using
+  a timing-safe comparison and enforce same-origin requests.
+- Record profile mutations in the private `adminAuditLogs` collection. There
+  is no public audit-log endpoint.
 
-Permanent deletion and private contact reveal are intentionally not enabled.
-The account email lookup never returns credential salt or verifier data.
+The browser never connects to Firestore directly. Firebase Admin SDK
+credentials must be configured on the server for live data. Permanent deletion
+and private contact reveal are intentionally unavailable.
 
 ## Environment settings
 
-- `NEXT_PUBLIC_FIREBASE_*` are Firebase Web App settings and are exposed in the
-  browser by design. Restrict the Firebase API key to the intended APIs and
-  domains in Google Cloud Console.
-- `FIREBASE_PROJECT_ID`, service-account email/private key, cookie settings,
-  and administrator allowlist are server-only settings.
-- `ADMIN_REQUIRE_MFA` defaults to `true`; set it to `false` only for isolated,
-  non-production testing. Do not disable MFA in production.
-- Configure the same server variables in Vercel Preview/Production; use a
-  staging Firebase project for Preview.
-- Never add the service-account private key to git, browser code, or a
-  `NEXT_PUBLIC_` variable. The app cannot query live Firestore until valid
-  server credentials and an administrator claim are configured.
+- `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`
+  are server-only Firebase Admin settings. Application Default Credentials
+  may be used instead of the service-account email and private key.
+- `ADMIN_WRITE_CONFIRMATION_KEY` is a server-only random secret of at least
+  32 bytes. Set it locally and in the Vercel Preview/Production environment
+  before enabling updates.
+- Never put service-account credentials or the write key in a
+  `NEXT_PUBLIC_*` variable. Use a staging Firebase project for Preview.
 
-## Firestore indexes and authorization setup
-
-The Firestore service account must have least-privileged access to the
-`players`, `loginCredentials` (exact document lookup only), and
-`adminAuditLogs` collections. Firebase Admin SDK bypasses Firestore rules, so
-all authorization is enforced by the API. Grant admin claims only through a
-trusted administrative script or Firebase Admin SDK, never from this UI.
-
-Name-prefix searches combined with archived status and filtered audit queries
-may require Firestore composite indexes. If Firebase returns a missing-index
-error, create the index suggested by the Firebase error for the queried fields.
+The service account should have least-privileged access to `players` and
+`adminAuditLogs`. Firebase Admin SDK bypasses Firestore security rules, so the
+server API projections and field validation define what the dashboard can
+read or change.

@@ -2,7 +2,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getAdminDb } from "../../../../../lib/firebase/admin";
 import { createAuditRecord } from "../../../../../lib/admin/audit";
 import { AdminApiError, jsonError, jsonSuccess, readJson, requireSameOrigin, serializeTimestamp } from "../../../../../lib/admin/http";
-import { requireAdmin } from "../../../../../lib/admin/require-admin";
+import { requireWriteConfirmation, sharedKeyActor } from "../../../../../lib/admin/require-write-key";
 
 export const runtime = "nodejs";
 
@@ -17,6 +17,13 @@ const editableFields = new Set([
 const battingStyles = new Set(["Right hand", "Left hand"]);
 const bowlingStyles = new Set(["Right arm fast", "Right arm medium", "Right arm off break", "Right arm leg break", "Left arm orthodox", "Left arm fast", "Left arm medium"]);
 const socialFields = new Set(["instagram", "facebook", "twitter", "youtube"]);
+
+function socialLinksProjection(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries([...socialFields]
+    .filter((field) => typeof value[field] === "string")
+    .map((field) => [field, value[field]]));
+}
 
 function statsProjection(value) {
   const stats = value && typeof value === "object" ? value : {};
@@ -34,7 +41,7 @@ function project(snapshot) {
     battingStyle: typeof value.battingStyle === "string" ? value.battingStyle : "",
     bowlingStyles: Array.isArray(value.bowlingStyles) ? value.bowlingStyles.filter((item) => typeof item === "string") : [],
     customBowlingStyle: typeof value.customBowlingStyle === "string" ? value.customBowlingStyle : "",
-    socialLinks: value.socialLinks && typeof value.socialLinks === "object" ? value.socialLinks : {},
+    socialLinks: socialLinksProjection(value.socialLinks),
     archived: value.archived === true,
     gangId: typeof value.gangId === "string" ? value.gangId : null,
     joinedAt: serializeTimestamp(value.joinedAt),
@@ -109,15 +116,12 @@ function checkExpectedVersion(currentVersion, expected) {
 
 export async function GET(request, { params }) {
   try {
-    const actor = await requireAdmin();
     const { playerId } = await params;
     if (!/^[A-Za-z0-9_-]{1,150}$/.test(playerId || "")) throw new AdminApiError(422, "INVALID_PLAYER_ID", "The player ID is invalid.");
     const adminDb = getAdminDb();
     const snapshot = await adminDb.collection("players").doc(playerId).get();
     if (!snapshot.exists) throw new AdminApiError(404, "PLAYER_NOT_FOUND", "Player not found.");
     const player = project(snapshot);
-    const audit = createAuditRecord({ actor, action: "player.profile.view", targetId: playerId, changedFields: [] });
-    await audit.ref.set(audit.data);
     return jsonSuccess(player);
   } catch (error) {
     return jsonError(error);
@@ -127,17 +131,17 @@ export async function GET(request, { params }) {
 export async function PATCH(request, { params }) {
   try {
     requireSameOrigin(request);
-    const actor = await requireAdmin("operator");
     const { playerId } = await params;
     if (!/^[A-Za-z0-9_-]{1,150}$/.test(playerId || "")) throw new AdminApiError(422, "INVALID_PLAYER_ID", "The player ID is invalid.");
     const body = await readJson(request);
     if (!body || typeof body !== "object" || Array.isArray(body)) throw new AdminApiError(422, "INVALID_BODY", "The request body is invalid.");
+    requireWriteConfirmation(body.confirmationKey);
     const reason = typeof body.reason === "string" ? body.reason.trim() : "";
     if (reason.length < 5 || reason.length > 300) throw new AdminApiError(422, "INVALID_REASON", "Give a reason between 5 and 300 characters.");
     const changes = validateChanges(body.changes);
     const adminDb = getAdminDb();
     const playerRef = adminDb.collection("players").doc(playerId);
-    const audit = createAuditRecord({ actor, action: "player.profile.update", targetId: playerId, reason, changedFields: Object.keys(changes) });
+    const audit = createAuditRecord({ actor: sharedKeyActor(), action: "player.profile.update", targetId: playerId, reason, changedFields: Object.keys(changes) });
 
     const updated = await adminDb.runTransaction(async (transaction) => {
       const current = await transaction.get(playerRef);

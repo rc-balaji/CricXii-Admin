@@ -16,10 +16,18 @@ export function jsonSuccess(data, status = 200) {
 export function jsonError(error) {
   const requestId = randomUUID();
   const known = error instanceof AdminApiError;
-  const status = known ? error.status : 500;
-  const code = known ? error.code : "INTERNAL";
-  const message = known ? error.message : "The request could not be completed.";
-  if (!known) console.error("Admin API request failed", { requestId, error });
+  const missingFirebaseConfiguration = error instanceof Error
+    && (/Could not load the default credentials/i.test(error.message)
+      || error.message.startsWith("Firebase Admin is not configured:")
+      || error.message.startsWith("Firebase Admin credentials are incomplete:"));
+  const status = known ? error.status : missingFirebaseConfiguration ? 503 : 500;
+  const code = known ? error.code : missingFirebaseConfiguration ? "FIREBASE_ADMIN_NOT_CONFIGURED" : "INTERNAL";
+  const message = known
+    ? error.message
+    : missingFirebaseConfiguration
+      ? "Firebase Admin credentials are not configured on the server. Set a service account or configure Application Default Credentials."
+      : "The request could not be completed.";
+  if (!known && !missingFirebaseConfiguration) console.error("Admin API request failed", { requestId, error });
   return NextResponse.json(
     { error: { code, message, requestId } },
     { status, headers: { "Cache-Control": "no-store" } },

@@ -1,9 +1,6 @@
-import { createHash } from "node:crypto";
 import { FieldPath } from "firebase-admin/firestore";
 import { getAdminDb } from "../../../../lib/firebase/admin";
-import { createAuditRecord } from "../../../../lib/admin/audit";
 import { AdminApiError, jsonError, jsonSuccess, serializeTimestamp } from "../../../../lib/admin/http";
-import { requireAdmin } from "../../../../lib/admin/require-admin";
 
 export const runtime = "nodejs";
 const MAX_PAGE_SIZE = 50;
@@ -23,6 +20,13 @@ function statsProjection(value) {
   };
 }
 
+function socialLinksProjection(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(["instagram", "facebook", "twitter", "youtube"]
+    .filter((field) => typeof value[field] === "string")
+    .map((field) => [field, value[field]]));
+}
+
 function playerProjection(snapshot) {
   const player = snapshot.data();
   return {
@@ -35,7 +39,7 @@ function playerProjection(snapshot) {
     bowlingStyle: typeof player.bowlingStyle === "string" ? player.bowlingStyle : "",
     customBowlingStyle: typeof player.customBowlingStyle === "string" ? player.customBowlingStyle : "",
     bio: typeof player.bio === "string" ? player.bio : "",
-    socialLinks: player.socialLinks && typeof player.socialLinks === "object" ? player.socialLinks : {},
+    socialLinks: socialLinksProjection(player.socialLinks),
     stats: statsProjection(player.stats),
     teamStats: statsProjection(player.teamStats),
     updatedAt: serializeTimestamp(player.updatedAt),
@@ -55,10 +59,9 @@ function decodeCursor(value) {
 
 export async function GET(request) {
   try {
-    const actor = await requireAdmin();
     const params = new URL(request.url).searchParams;
     const q = (params.get("q") || "").trim();
-    const qType = params.get("qType") || (q.includes("@") ? "email" : (/^CX-[A-Za-z0-9_-]+$/i.test(q) || /^\d{6,}$/.test(q) ? "playerId" : "namePrefix"));
+    const qType = params.get("qType") || (/^CX-[A-Za-z0-9_-]+$/i.test(q) || /^\d{6,}$/.test(q) ? "playerId" : "namePrefix");
     const status = params.get("status") || "active";
     const limitValue = Number(params.get("limit") || 25);
     if (!Number.isInteger(limitValue) || limitValue < 1) throw new AdminApiError(422, "INVALID_LIMIT", "The page size must be a positive whole number.");
@@ -67,35 +70,13 @@ export async function GET(request) {
     if (!["active", "archived", "all"].includes(status)) {
       throw new AdminApiError(422, "INVALID_STATUS", "The player status filter is invalid.");
     }
-    if (!["playerId", "email", "namePrefix"].includes(qType)) {
+    if (!["playerId", "namePrefix"].includes(qType)) {
       throw new AdminApiError(422, "INVALID_SEARCH_TYPE", "The player search type is invalid.");
     }
     if (q.length > 120) throw new AdminApiError(422, "QUERY_TOO_LONG", "The search query is too long.");
     const archived = status === "all" ? null : status === "archived";
     const adminDb = getAdminDb();
     const collection = adminDb.collection("players");
-
-    if (qType === "email") {
-      if (actor.role === "support") {
-        throw new AdminApiError(403, "FORBIDDEN", "Email search requires an operator role.");
-      }
-      if (!q || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q)) {
-        throw new AdminApiError(422, "INVALID_EMAIL", "Enter a valid email address.");
-      }
-      const emailKey = createHash("sha256").update(q.toLowerCase()).digest("hex");
-      const credential = await adminDb.collection("loginCredentials").doc(emailKey).get();
-      const credentialPlayerId = credential.get("playerId");
-      if (!credential.exists || typeof credentialPlayerId !== "string" || !/^[A-Za-z0-9_-]{1,150}$/.test(credentialPlayerId)) {
-        return jsonSuccess({ items: [], nextCursor: null });
-      }
-      const player = await collection.doc(credentialPlayerId).get();
-      if (!player.exists || (archived !== null && (player.get("archived") === true) !== archived)) {
-        return jsonSuccess({ items: [], nextCursor: null });
-      }
-      const audit = createAuditRecord({ actor, action: "player.email_search", targetId: player.id, reason: "Exact account email search", changedFields: [] });
-      await audit.ref.set(audit.data);
-      return jsonSuccess({ items: [{ ...playerProjection(player), accountEmail: q.toLowerCase() }], nextCursor: null });
-    }
 
     if (qType === "playerId" && q) {
       if (!/^[A-Za-z0-9_-]{1,150}$/.test(q)) throw new AdminApiError(422, "INVALID_PLAYER_ID", "The player ID is invalid.");
