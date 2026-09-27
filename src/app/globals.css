@@ -242,6 +242,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .audit-info-banner span { color: #788b7b; font-size: 9px; line-height: 1.5; }
 .audit-page-panel { padding: 0 15px; }
 .audit-filter-row { display: flex; justify-content: space-between; gap: 12px; padding: 13px 0; border-bottom: 1px solid #edf0ee; }
+.live-audit-filters { display: grid; grid-template-columns: repeat(3, minmax(100px, 1fr)) repeat(2, minmax(115px, .8fr)) auto; }
+.live-audit-filters input { min-width: 0; height: 32px; padding: 0 8px; border: 1px solid #e7ece8; border-radius: 5px; color: #55645a; font-size: 9px; }
+.live-audit-filters .button { min-height: 32px; font-size: 9px; }
 .audit-search { width: min(350px, 75%); }
 .audit-page-list { padding: 1px 0; }
 .audit-page-list .audit-row { min-height: 74px; }
@@ -327,6 +330,41 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .toast button { display: grid; width: 23px; height: 23px; flex: 0 0 auto; place-items: center; margin-left: auto; border: 0; border-radius: 4px; background: transparent; color: #8b958e; cursor: pointer; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .mobile-scrim { display: none; }
+.workspace-static { cursor: default; }
+.workspace-static > svg { display: none; }
+.api-error { display: flex; align-items: center; gap: 9px; padding: 11px 13px; margin: 13px 0; border: 1px solid #f0d6cf; border-radius: 7px; background: #fff7f5; color: #a34c39; font-size: 11px; line-height: 1.45; }
+.api-error > svg { flex: 0 0 auto; }
+.api-error > span { flex: 1; }
+.api-error > button { padding: 5px 8px; border: 1px solid #e9c9c1; border-radius: 5px; background: white; color: #9a4d3d; cursor: pointer; font-size: 10px; font-weight: 600; }
+.live-search { width: min(510px, 70%); }
+.search-submit { height: 25px; padding: 0 8px; border: 0; border-radius: 4px; background: #edf5ef; color: #377a4c; cursor: pointer; font-size: 9px; font-weight: 650; }
+.auth-loading { display: flex; min-height: 100vh; align-items: center; justify-content: center; gap: 10px; color: #748078; font-size: 12px; }
+.loading-spinner { display: inline-block; width: 17px; height: 17px; flex: 0 0 auto; border: 2px solid #dce9de; border-top-color: #338354; border-radius: 50%; animation: spin .75s linear infinite; }
+.busy-indicator { position: fixed; right: 18px; bottom: 18px; z-index: 45; display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid #e7ece8; border-radius: 7px; background: white; color: #66736b; box-shadow: 0 4px 16px #16281a12; font-size: 10px; }
+.login-page { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: radial-gradient(ellipse at 50% 0%, #eaf4ed 0, #f7f8f7 62%); }
+.login-card { width: min(100%, 410px); padding: 28px; border: 1px solid #e8ede9; border-radius: 12px; background: white; box-shadow: 0 12px 45px #1d42200d; }
+.login-brand { margin: 0 0 34px; }
+.login-heading { display: grid; justify-items: center; text-align: center; }
+.login-shield { display: grid; width: 42px; height: 42px; place-items: center; margin-bottom: 12px; border-radius: 12px; background: #edf6ef; color: #378458; }
+.login-heading h1 { margin: 0; color: #26362d; font-size: 22px; letter-spacing: -.5px; }
+.login-heading p { max-width: 310px; margin: 8px 0 22px; color: #838e87; font-size: 11px; line-height: 1.6; }
+.google-signin { display: flex; width: 100%; min-height: 43px; align-items: center; justify-content: center; gap: 10px; border: 1px solid #dfe5e1; border-radius: 7px; background: #fff; color: #3c4941; cursor: pointer; font-size: 11px; font-weight: 600; }
+.google-signin:hover:not(:disabled) { background: #f9fbf9; border-color: #c8d4cc; }
+.google-signin:disabled { opacity: .65; cursor: wait; }
+.login-security { display: flex; align-items: flex-start; gap: 7px; padding: 11px; margin-top: 17px; border-radius: 6px; background: #f6f8f6; color: #77837a; font-size: 9px; line-height: 1.55; }
+.login-security svg { flex: 0 0 auto; color: #65866d; }
+.login-help { margin: 16px 0 0; color: #a0a8a2; font-size: 9px; text-align: center; }
+.login-error { padding: 9px 10px; margin: 0 0 12px; border: 1px solid #f0d6cf; border-radius: 6px; background: #fff7f5; color: #a34c39; font-size: 10px; line-height: 1.5; }
+.mfa-form { display: grid; gap: 11px; }
+.mfa-form > strong { color: #3a4a40; font-size: 12px; }
+.mfa-form > p { margin: -5px 0 0; color: #87928a; font-size: 10px; line-height: 1.6; }
+.mfa-form > code { padding: 10px; overflow-wrap: anywhere; border: 1px solid #e6ece7; border-radius: 6px; background: #f7f9f7; color: #3c5945; font-size: 11px; text-align: center; user-select: all; }
+.mfa-form label { display: grid; gap: 5px; color: #66756b; font-size: 10px; font-weight: 600; }
+.mfa-form input { width: 100%; height: 39px; padding: 0 10px; border: 1px solid #e1e8e2; border-radius: 6px; outline: 0; color: #33443a; font-size: 12px; letter-spacing: 2px; }
+.mfa-form input:focus { border-color: #79b287; }
+.mfa-form .google-signin { min-height: 39px; background: #258158; color: white; }
+.mfa-form .google-signin:hover:not(:disabled) { background: #1c6e49; }
+@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slide-in { from { transform: translateX(16px); opacity: .7; } to { transform: translateX(0); opacity: 1; } }
 @keyframes toast-up { from { transform: translateY(7px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -408,6 +446,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .player-summary-strip .summary-all { font-size: 8px; }
   .players-toolbar { flex-direction: column; padding: 10px; }
   .search-box { width: 100%; min-width: 0; }
+  .live-search { width: 100%; }
   .toolbar-filters { justify-content: flex-end; }
   .filter-select { flex: 1; }
   .table-wrap { overflow: visible; }
@@ -430,6 +469,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   .audit-info-banner { padding: 10px; }
   .audit-info-banner span { line-height: 1.5; }
   .audit-page-panel { padding: 0 10px; }
+  .live-audit-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .live-audit-filters .button { grid-column: 1 / -1; }
   .audit-event-time { font-size: 8px; }
   .player-drawer { width: 100%; }
   .drawer-topline { height: 53px; padding: 0 16px; }

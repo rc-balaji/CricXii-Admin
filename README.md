@@ -1,52 +1,88 @@
 # CricXii Admin Console
 
-A responsive player-management preview for the CricXii admin experience.
-The Firebase client app and Authentication SDK are initialized for the
-`crixx-59eca` Firebase project. The dashboard still uses fictional sample data:
-Firebase admin sign-in and production player APIs are not connected.
+The console reads player records from the `crixx-59eca` Firestore project
+through authenticated Next.js server APIs. The Firebase Web SDK is used only
+for administrator sign-in; browser code never reads or writes Firestore.
 
 ## Run locally
 
-```bash
-npm install
-npm run dev
-```
+1. Copy `.env.example` to `.env.local`. The local `.env.local` is ignored by
+   git and contains the Firebase Web App config already provided for this
+   project.
+2. Configure Firebase Admin credentials locally. Either use Google
+   Application Default Credentials:
 
-Copy `.env.example` to `.env.local` and provide the Firebase Web App settings
-from Firebase Console > Project settings > Your apps. The local `.env.local`
-for the supplied project is already configured and ignored by git. Restart the
-dev server after changing environment values.
+   ```bash
+   gcloud auth application-default login
+   ```
 
-Open [http://localhost:3000](http://localhost:3000).
+   or fill `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` in `.env.local`
+   using a Firebase service account from the `crixx-59eca` project. Never
+   commit or share that private key.
+3. Enable Google as a Firebase Authentication provider, enable TOTP MFA, and
+   add the local development domain to Authorized domains.
+4. Create the administrator identity in Firebase Authentication, then grant
+   its custom claims out of band:
 
-## Preview features
+   ```bash
+   npm run admin:grant -- rcbalaji2003@gmail.com operator
+   ```
 
-- Search sample players by name, email, player ID or gang, and filter by active
-  or archived status.
-- Browse player profile details and read-only career stats.
-- Edit allowlisted sample profile fields with a required reason.
-- Archive and restore sample profiles with a required reason.
-- Review the local sample audit log and export sample player data as CSV.
-- Toggle **Save this preview on this device** to keep sample edits in this
-  browser. **Reset sample data** restores the original examples.
+   This script uses the local Firebase Admin credentials and grants the
+   specified account the requested role. Start with `operator`; grant `owner`
+   only if audit-log access or owner-only operations are explicitly needed.
+   The sign-in page prompts the authorized admin to enroll an authenticator
+   before issuing an admin session. Set the same email in
+   `ADMIN_ALLOWED_EMAILS`.
+5. Start the app:
 
-Local save writes only fictional demo profiles and demo audit entries to
-browser `localStorage`. It does not save credentials, tokens, or production
-player data. The login details for CricXii player accounts are not admin
-credentials and are not used by this console.
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-## Production integration required
+Open [http://localhost:3000](http://localhost:3000) and sign in with the
+separately provisioned administrator Google account. Player app credentials
+are not administrator credentials.
 
-Before connecting real player data, configure an independent Firebase
-administrator identity and custom-claim role, exchange sign-in for a secure
-server session, and implement authenticated same-origin admin APIs using the
-Firebase Admin SDK. Enforce per-operation roles, audited reads and writes,
-CSRF/origin checks, input validation, pagination, and optimistic concurrency
-on the server. Keep service credentials server-only. Do not enable real profile
-mutations or deletion from the browser-only preview.
+## Connected features
 
-`NEXT_PUBLIC_FIREBASE_*` values configure the Firebase Web SDK and are
-intentionally available in the browser; they are not service-account
-credentials. Never put a Firebase Admin private key or player password in a
-`NEXT_PUBLIC_` variable or client code. A Firebase API key should still be
-restricted to the intended project and APIs in Google Cloud Console.
+- Search Firestore profiles by name prefix or player ID; exact email lookup is
+  available to operator/owner roles only.
+- View allowlisted profile fields and read-only Singles/team career stats.
+- Edit only approved public fields and archive/restore with a reason and an
+  optimistic `updatedAt` precondition.
+- Record profile reads and mutations in `adminAuditLogs`; audit history is
+  owner-only and read-only in the UI.
+- The browser communicates only with `/api/admin/*`; server routes verify
+  Firebase session cookies, administrator claims, role and MFA.
+
+Permanent deletion and private contact reveal are intentionally not enabled.
+The account email lookup never returns credential salt or verifier data.
+
+## Environment settings
+
+- `NEXT_PUBLIC_FIREBASE_*` are Firebase Web App settings and are exposed in the
+  browser by design. Restrict the Firebase API key to the intended APIs and
+  domains in Google Cloud Console.
+- `FIREBASE_PROJECT_ID`, service-account email/private key, cookie settings,
+  and administrator allowlist are server-only settings.
+- `ADMIN_REQUIRE_MFA` defaults to `true`; set it to `false` only for isolated,
+  non-production testing. Do not disable MFA in production.
+- Configure the same server variables in Vercel Preview/Production; use a
+  staging Firebase project for Preview.
+- Never add the service-account private key to git, browser code, or a
+  `NEXT_PUBLIC_` variable. The app cannot query live Firestore until valid
+  server credentials and an administrator claim are configured.
+
+## Firestore indexes and authorization setup
+
+The Firestore service account must have least-privileged access to the
+`players`, `loginCredentials` (exact document lookup only), and
+`adminAuditLogs` collections. Firebase Admin SDK bypasses Firestore rules, so
+all authorization is enforced by the API. Grant admin claims only through a
+trusted administrative script or Firebase Admin SDK, never from this UI.
+
+Name-prefix searches combined with archived status and filtered audit queries
+may require Firestore composite indexes. If Firebase returns a missing-index
+error, create the index suggested by the Firebase error for the queried fields.

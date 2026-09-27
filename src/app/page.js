@@ -1,5 +1,5 @@
-import AdminDashboard from "./ui/admin-dashboard";
+import AdminConsole from "./ui/admin-console";
 
 export default function Home() {
-  return <AdminDashboard />;
+  return <AdminConsole />;
 }

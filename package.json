@@ -6,13 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "admin:grant": "node scripts/grant-admin.mjs"
   },
   "dependencies": {
     "firebase": "^12.19.0",
+    "firebase-admin": "^14.5.0",
     "next": "16.3.6",
     "react": "19.2.8",
     "react-dom": "19.2.8"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
