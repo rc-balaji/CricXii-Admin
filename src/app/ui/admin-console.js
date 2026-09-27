@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { firebaseAuth } from "../../lib/firebase/client";
 
 const PAGE_SIZE = 10;
@@ -64,12 +64,6 @@ async function requestJson(url, options = {}) {
   return body?.data;
 }
 
-function inferSearchType(value) {
-  if (value.includes("@")) return "email";
-  if (/^CX-[A-Za-z0-9_-]+$/i.test(value)) return "playerId";
-  return "namePrefix";
-}
-
 export default function AdminConsole() {
   const router = useRouter();
   const [session, setSession] = useState(null);
@@ -79,6 +73,7 @@ export default function AdminConsole() {
   const [page, setPage] = useState(0);
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
+  const [searchType, setSearchType] = useState("namePrefix");
   const [status, setStatus] = useState("all");
   const [section, setSection] = useState("Players");
   const [audit, setAudit] = useState([]);
@@ -96,14 +91,14 @@ export default function AdminConsole() {
   const [archiveReason, setArchiveReason] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
 
-  const loadPlayers = useCallback(async (nextQuery = query, nextStatus = status) => {
+  const loadPlayers = useCallback(async (nextQuery, nextStatus, nextSearchType) => {
     setBusy(true);
     setError("");
     try {
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), status: nextStatus });
       if (nextQuery) {
         params.set("q", nextQuery);
-        params.set("qType", inferSearchType(nextQuery));
+        params.set("qType", nextSearchType);
       }
       const result = await requestJson(`/api/admin/players?${params}`);
       const items = (result.items || []).map(playerView);
@@ -120,7 +115,7 @@ export default function AdminConsole() {
     } finally {
       setBusy(false);
     }
-  }, [query, status, router]);
+  }, [router]);
 
   useEffect(() => {
     let active = true;
@@ -131,7 +126,7 @@ export default function AdminConsole() {
         return;
       }
       setSession(result);
-      loadPlayers("", "all");
+      loadPlayers("", "all", "namePrefix");
     }).catch((sessionError) => {
       if (!active) return;
       if (sessionError.status === 401 || sessionError.status === 403) {
@@ -186,7 +181,7 @@ export default function AdminConsole() {
     setSection(next);
     setMobileNav(false);
     if (next === "Audit log") loadAudit();
-    else if (next === "Players") loadPlayers();
+    else if (next === "Players") loadPlayers(query, status, searchType);
   }
 
   async function nextPage() {
@@ -201,7 +196,7 @@ export default function AdminConsole() {
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), status, cursor });
       if (query) {
         params.set("q", query);
-        params.set("qType", inferSearchType(query));
+        params.set("qType", searchType);
       }
       const result = await requestJson(`/api/admin/players?${params}`);
       const items = (result.items || []).map(playerView);
@@ -219,7 +214,7 @@ export default function AdminConsole() {
     event.preventDefault();
     const nextQuery = searchInput.trim();
     setQuery(nextQuery);
-    await loadPlayers(nextQuery, status);
+    await loadPlayers(nextQuery, status, searchType);
   }
 
   async function submitEdit(event) {
@@ -248,7 +243,7 @@ export default function AdminConsole() {
       setToast("Profile updated.");
       setSelected(null);
       setEditing(false);
-      await loadPlayers();
+      await loadPlayers(query, status, searchType);
     } catch (saveError) {
       setError(saveError.message);
     } finally {
@@ -273,7 +268,7 @@ export default function AdminConsole() {
       setToast(result.archived ? "Player archived." : "Player restored.");
       setSelected(null);
       setArchiveOpen(false);
-      await loadPlayers();
+      await loadPlayers(query, status, searchType);
     } catch (archiveError) {
       setError(archiveError.message);
     } finally {
@@ -310,16 +305,16 @@ export default function AdminConsole() {
       <header className="topbar"><button className="icon-button mobile-menu" aria-label="Open navigation" onClick={() => setMobileNav(true)}><Icon name="menu" size={20} /></button><div className="breadcrumbs"><span>Workspace</span><Icon name="chevron" size={13} /><strong>{section}</strong></div><div className="topbar-actions"><span className="local-pill"><span /> FIREBASE LIVE</span><span className="topbar-divider" /><button className="topbar-user" onClick={logout}><span className="top-avatar">{(session?.email || "AD").slice(0, 2).toUpperCase()}</span><span className="user-name">{session?.email}</span><Icon name="logout" size={15} /></button></div></header>
       <div className="page-content">
         <div className="preview-banner"><span className="preview-dot" /><div><strong>Authenticated Firebase admin</strong><span>Live Firestore player records · reads and changes are handled by protected server APIs.</span></div></div>
-        {error && <div className="api-error" role="alert"><Icon name="shield" size={17} /><span>{error}</span><button onClick={() => { setError(""); if (section === "Audit log") loadAudit(); else loadPlayers(); }}>Retry</button></div>}
+        {error && <div className="api-error" role="alert"><Icon name="shield" size={17} /><span>{error}</span><button onClick={() => { setError(""); if (section === "Audit log") loadAudit(); else loadPlayers(query, status, searchType); }}>Retry</button></div>}
 
         {section === "Audit log" ? <section>
           <div className="page-heading"><div><div className="eyebrow">SECURITY &amp; COMPLIANCE <span className="eyebrow-line" /></div><h1>Audit log</h1><p>Read-only record of administrator actions.</p></div><span className="audit-readonly"><Icon name="lock" size={14} /> Owner access</span></div>
           <section className="panel audit-page-panel"><form className="audit-filter-row live-audit-filters" onSubmit={(event) => { event.preventDefault(); loadAudit(auditFilters); }}><input aria-label="Filter by operator email" placeholder="Operator email" value={auditFilters.operator} onChange={(event) => setAuditFilters({ ...auditFilters, operator: event.target.value })} /><input aria-label="Filter by player ID" placeholder="Player ID" value={auditFilters.targetPlayer} onChange={(event) => setAuditFilters({ ...auditFilters, targetPlayer: event.target.value })} /><input aria-label="Filter by action" placeholder="Action" value={auditFilters.action} onChange={(event) => setAuditFilters({ ...auditFilters, action: event.target.value })} /><input aria-label="From date" type="date" value={auditFilters.from} onChange={(event) => setAuditFilters({ ...auditFilters, from: event.target.value })} /><input aria-label="To date" type="date" value={auditFilters.to} onChange={(event) => setAuditFilters({ ...auditFilters, to: event.target.value })} /><button className="button button-secondary" type="submit">Filter</button></form><div className="audit-page-list">{audit.map((event) => <div className="audit-row" key={event.id}><span className="audit-event-icon audit-view"><Icon name="file" size={16} /></span><span className="audit-event-copy"><strong>{event.action}</strong><small>{event.targetId} · {event.actorEmail} · {event.reason || event.actorRole}</small></span><span className="audit-event-time"><Icon name="clock" size={13} />{dateLabel(event.createdAt)}</span></div>)}{!busy && !audit.length && <div className="empty-state"><strong>No audit events found</strong><p>Server-recorded admin activity will appear here.</p></div>}</div>{auditNextCursor && <div className="audit-load-more"><button className="button button-secondary" disabled={busy} onClick={() => loadAudit(auditFilters, auditNextCursor, true)}>Load more audit events</button></div>}</section>
         </section> : <>
-          <div className="page-heading players-heading"><div><div className="eyebrow">FIRESTORE DIRECTORY <span className="eyebrow-line" /></div><h1>Players <span className="heading-count">{players.length}</span></h1><p>Live profiles from your Firebase project. Search by name, player ID or account email.</p></div><button className="button button-secondary" onClick={() => loadPlayers()}><Icon name="users" size={16} /> Refresh</button></div>
+          <div className="page-heading players-heading"><div><div className="eyebrow">FIRESTORE DIRECTORY <span className="eyebrow-line" /></div><h1>Players <span className="heading-count">{players.length}</span></h1><p>Live profiles from your Firebase project. Search by name, player ID or account email.</p></div><button className="button button-secondary" onClick={() => loadPlayers(query, status, searchType)}><Icon name="users" size={16} /> Refresh</button></div>
           <div className="player-summary-strip"><div><span className="summary-dot active-dot" /><strong>{players.filter((item) => !item.archived).length}</strong><span>Active in this page</span></div><i /><div><span className="summary-dot archived-dot" /><strong>{players.filter((item) => item.archived).length}</strong><span>Archived in this page</span></div></div>
           <section className="panel players-panel">
-            <div className="players-toolbar"><form className="search-box live-search" onSubmit={submitSearch}><Icon name="search" size={18} /><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search name, player ID, or email…" aria-label="Search Firestore players" /><button type="submit" className="search-submit">Search</button></form><div className="toolbar-filters"><label className="filter-select"><span className="sr-only">Filter player status</span><select value={status} onChange={(event) => { setStatus(event.target.value); setQuery(searchInput.trim()); loadPlayers(searchInput.trim(), event.target.value); }}><option value="all">All players</option><option value="active">Active</option><option value="archived">Archived</option></select><Icon name="down" size={15} /></label></div></div>
+            <div className="players-toolbar"><form className="search-box live-search" onSubmit={submitSearch}><Icon name="search" size={18} /><label className="sr-only" htmlFor="player-search-type">Search players by</label><select id="player-search-type" className="search-type-select" value={searchType} onChange={(event) => setSearchType(event.target.value)}><option value="namePrefix">Name</option><option value="playerId">Player ID</option><option value="email">Email</option></select><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={`Search by ${searchType === "namePrefix" ? "name" : searchType === "playerId" ? "player ID" : "email"}…`} aria-label="Search Firestore players" /><button type="submit" className="search-submit">Search</button></form><div className="toolbar-filters"><label className="filter-select"><span className="sr-only">Filter player status</span><select value={status} onChange={(event) => { setStatus(event.target.value); setQuery(searchInput.trim()); loadPlayers(searchInput.trim(), event.target.value, searchType); }}><option value="all">All players</option><option value="active">Active</option><option value="archived">Archived</option></select><Icon name="down" size={15} /></label></div></div>
             <div className="table-wrap"><table className="players-table"><thead><tr><th className="player-th">PLAYER</th><th>PLAYER ID</th><th>GANG ID</th><th>MATCHES</th><th>JOINED</th><th>STATUS</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
               {visiblePlayers.map((player) => <tr key={player.playerId} onClick={() => openPlayer(player)} tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") openPlayer(player); }}><td><div className="player-cell"><span className="avatar avatar-mint">{player.avatar}</span><span><strong>{player.name || "Unnamed player"}</strong><small>{player.email}</small></span></div></td><td><span className="id-code">{player.playerId}</span></td><td><span className={`gang-label ${player.gang === "—" ? "gang-none" : ""}`}><i />{player.gang}</span></td><td className="match-count">{player.matches}<span> matches</span></td><td className="date-cell">{dateLabel(player.joinedAt)}</td><td><span className={`status-badge ${player.archived ? "status-archived" : "status-active"}`}><i />{player.archived ? "Archived" : "Active"}</span></td><td><button className="row-more" aria-label={`Open ${player.name} profile`} onClick={(event) => { event.stopPropagation(); openPlayer(player); }}><Icon name="chevron" size={17} /></button></td></tr>)}
               {!busy && !visiblePlayers.length && <tr><td colSpan="7"><div className="empty-state"><span className="empty-icon"><Icon name="search" size={21} /></span><strong>{error ? "Player data could not be loaded" : "No players found"}</strong><p>{error || "Try a different search or status filter."}</p></div></td></tr>}

@@ -19,21 +19,26 @@ for administrator sign-in; browser code never reads or writes Firestore.
    or fill `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` in `.env.local`
    using a Firebase service account from the `crixx-59eca` project. Never
    commit or share that private key.
-3. Enable Google as a Firebase Authentication provider, enable TOTP MFA, and
+3. Enable **Email/Password** in Firebase Authentication, enable TOTP MFA, and
    add the local development domain to Authorized domains.
-4. Create the administrator identity in Firebase Authentication, then grant
-   its custom claims out of band:
+4. Create or verify the administrator as a Firebase Authentication
+   email/password user, then grant its custom claims out of band:
 
    ```bash
    npm run admin:grant -- rcbalaji2003@gmail.com operator
    ```
 
-   This script uses the local Firebase Admin credentials and grants the
-   specified account the requested role. Start with `operator`; grant `owner`
-   only if audit-log access or owner-only operations are explicitly needed.
-   The sign-in page prompts the authorized admin to enroll an authenticator
-   before issuing an admin session. Set the same email in
-   `ADMIN_ALLOWED_EMAILS`.
+   This script reads `.env.local`, requires the same email to be explicitly
+   listed in `ADMIN_ALLOWED_EMAILS`, and grants only its existing Firebase
+   Authentication user the requested role. Start with `operator`; grant
+   `owner` only if audit-log access or owner-only operations are needed. If
+   the email exists only in CricXii's Firestore `loginCredentials`, create a
+   separate Firebase Authentication identity for that email first. The
+   Firestore player password verifier cannot be reused as a Firebase Auth
+   password; set a new password privately through Firebase Authentication.
+   The console never reads or stores the password. On first admin sign-in the
+   console requires authenticator enrollment, then requires the authenticator
+   code on subsequent sign-ins.
 5. Start the app:
 
    ```bash
@@ -42,8 +47,8 @@ for administrator sign-in; browser code never reads or writes Firestore.
    ```
 
 Open [http://localhost:3000](http://localhost:3000) and sign in with the
-separately provisioned administrator Google account. Player app credentials
-are not administrator credentials.
+separately provisioned Firebase Authentication administrator account. Player
+app credentials are not administrator credentials.
 
 ## Connected features
 
