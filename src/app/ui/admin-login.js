@@ -44,7 +44,16 @@ export default function AdminLogin() {
       body: JSON.stringify(data),
     });
     const body = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(body?.error?.message || "Administrator sign-in was not authorized.");
+    if (!response.ok) {
+      const apiError = body?.error;
+      const message = apiError?.code === "INTERNAL"
+        ? "The admin server could not connect to Firebase. Configure Firebase Admin credentials in the deployment environment."
+        : apiError?.message || `The admin server returned HTTP ${response.status}. Check its Firebase configuration.`;
+      const error = new Error(apiError?.requestId ? `${message} (Request ID: ${apiError.requestId})` : message);
+      error.code = apiError?.code;
+      throw error;
+    }
+    if (!body?.data) throw new Error(`The admin server returned an invalid response (HTTP ${response.status}).`);
     return body.data;
   }
 
