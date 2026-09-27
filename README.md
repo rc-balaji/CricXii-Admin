@@ -20,10 +20,10 @@ credentials, and audit logs are not exposed to public readers.
    or set `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and
    `FIREBASE_PRIVATE_KEY` using a Firebase service account. Never commit or
    share the service-account private key.
-3. Generate a separate strong random secret for `ADMIN_WRITE_CONFIRMATION_KEY`
-   and save it only in your local environment and deployment secrets. It must
-   be at least 32 bytes. Do not use a player password or put this key in
-   `NEXT_PUBLIC_*`, browser code, or source control.
+3. Set `SECRET_KEY` in `.env.local` (or set `ADMIN_WRITE_CONFIRMATION_KEY` as
+   an override) to the server-side update key. The value must be at least
+   8 characters; use a strong random value of at least 32 bytes. Do not put
+   this key in `NEXT_PUBLIC_*`, browser code, or source control.
 4. Install dependencies and start the app:
 
    ```bash
@@ -56,9 +56,10 @@ and private contact reveal are intentionally unavailable.
 - `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`
   are server-only Firebase Admin settings. Application Default Credentials
   may be used instead of the service-account email and private key.
-- `ADMIN_WRITE_CONFIRMATION_KEY` is a server-only random secret of at least
-  32 bytes. Set it locally and in the Vercel Preview/Production environment
-  before enabling updates.
+- `ADMIN_WRITE_CONFIRMATION_KEY` overrides `SECRET_KEY` for write
+  confirmation. Otherwise, `SECRET_KEY` is used. Configure the selected
+  server-only variable locally and in the Vercel Preview/Production
+  environment; use a strong random value of at least 32 bytes.
 - Never put service-account credentials or the write key in a
   `NEXT_PUBLIC_*` variable. Use a staging Firebase project for Preview.
 
