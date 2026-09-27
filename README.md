@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# CricXii Admin Console
 
-## Getting Started
+A responsive player-management preview for the CricXii admin experience.
+The Firebase client app and Authentication SDK are initialized for the
+`crixx-59eca` Firebase project. The dashboard still uses fictional sample data:
+Firebase admin sign-in and production player APIs are not connected.
 
-First, run the development server:
+## Run locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copy `.env.example` to `.env.local` and provide the Firebase Web App settings
+from Firebase Console > Project settings > Your apps. The local `.env.local`
+for the supplied project is already configured and ignored by git. Restart the
+dev server after changing environment values.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+Open [http://localhost:3000](http://localhost:3000).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Preview features
 
-## Learn More
+- Search sample players by name, email, player ID or gang, and filter by active
+  or archived status.
+- Browse player profile details and read-only career stats.
+- Edit allowlisted sample profile fields with a required reason.
+- Archive and restore sample profiles with a required reason.
+- Review the local sample audit log and export sample player data as CSV.
+- Toggle **Save this preview on this device** to keep sample edits in this
+  browser. **Reset sample data** restores the original examples.
 
-To learn more about Next.js, take a look at the following resources:
+Local save writes only fictional demo profiles and demo audit entries to
+browser `localStorage`. It does not save credentials, tokens, or production
+player data. The login details for CricXii player accounts are not admin
+credentials and are not used by this console.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Production integration required
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Before connecting real player data, configure an independent Firebase
+administrator identity and custom-claim role, exchange sign-in for a secure
+server session, and implement authenticated same-origin admin APIs using the
+Firebase Admin SDK. Enforce per-operation roles, audited reads and writes,
+CSRF/origin checks, input validation, pagination, and optimistic concurrency
+on the server. Keep service credentials server-only. Do not enable real profile
+mutations or deletion from the browser-only preview.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`NEXT_PUBLIC_FIREBASE_*` values configure the Firebase Web SDK and are
+intentionally available in the browser; they are not service-account
+credentials. Never put a Firebase Admin private key or player password in a
+`NEXT_PUBLIC_` variable or client code. A Firebase API key should still be
+restricted to the intended project and APIs in Google Cloud Console.
